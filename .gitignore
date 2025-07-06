@@ -6,6 +6,11 @@
 *.lo
 *.o
 *.obj
+*.make
+Makefile
+build
+bin-int
+bin
 
 # Precompiled Headers
 *.gch
