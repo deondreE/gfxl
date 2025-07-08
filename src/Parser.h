@@ -5,8 +5,8 @@
 #include <memory> 
 #include <map>
 
-#include "lexer.h"
-#include "token.h"
+#include "Lexer.h"
+#include "Token.h"
 #include "ast.h"
 
 // Define operator precedences (higher value means higher precedence)

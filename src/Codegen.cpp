@@ -5,9 +5,7 @@
 
 const int WORD_SIZE = 8;
 
-CodeGenerator::CodeGenerator() : stackOffsetCounter_(0) {
-    assembly_code_ += ".intel_syntax noprefix\n";
-    assembly_code_ += ".global _start\n";
+CodeGenerator::CodeGenerator() : stackOffsetCounter_(0) { 
     assembly_code_ += ".text\n";
 }
 
@@ -17,21 +15,17 @@ std::string CodeGenerator::generate(const Program* program_ast) {
         return "";
     }
 
+    emit("  .globl main");
+    emit("  .globl print_int");
     emit("main:");
-    emit("  push rbp");
-    emit("  mov rbp, rsp");
+    emit("  pushq %rbp");
+    emit("  movq %rsp, %rbp");
 
     visit(program_ast);
 
-    emit("  mov rax, 60");
-    emit("  xor rdi, rdi");
-    emit("  syscall");
-
-    emit("_start:");
-    emit("  call main");
-    emit("  mov rax, 60");
-    emit("  xor rdi, rdi");
-    emit("  syscall");
+    emit("  movq $0, %rax");  // return 0
+    emit("  leave");
+    emit("  ret");
 
     return assembly_code_;
 }
@@ -82,23 +76,22 @@ void CodeGenerator::visit(const AssignmentStatement* node) {
 
     if (sym) {
         std::stringstream ss;
-        ss << "  mov QWORD PTR [rbp - " << sym->stackOffset << "], rax";
+        ss << "  movq %rax, -" << sym->stackOffset << "(%rbp)";
         emit(ss.str());
-    }
-    else {
+    } else {
         error("Failed to resolve symbol: " + var);
     }
 }
 
 void CodeGenerator::visit(const ExpressionStatement* node) {
     visit(node->expression.get());
-    emit("  pop rax");
+    emit("  popq %rax");
 }
 
 void CodeGenerator::visit(const PrintStatement* node) {
     visit(node->expression.get());
-    emit("  pop rdi");        // Value to print
-    emit("  call print_int"); // You must define print_int elsewhere (e.g. in another asm file)
+    emit("  popq %rdi");
+    emit("  call print_int");
 }
 
 void CodeGenerator::visit(const Expression* node) {
@@ -118,7 +111,7 @@ void CodeGenerator::visit(const Expression* node) {
 
 void CodeGenerator::visit(const IntegerLiteral* node) {
     std::stringstream ss;
-    ss << "  push " << node->value;
+    ss << "  pushq $" << node->value;
     emit(ss.str());
 }
 
@@ -126,34 +119,33 @@ void CodeGenerator::visit(const IdentifierExpr* node) {
     Symbol* sym = getSymbol(node->name);
     if (sym) {
         std::stringstream ss;
-        ss << "  push QWORD PTR [rbp - " << sym->stackOffset << "]";
+        ss << "  pushq -" << sym->stackOffset << "(%rbp)";
         emit(ss.str());
-    }
-    else {
+    } else {
         error("Undefined variable: " + node->name);
-        emit("  push 0");
+        emit("  pushq $0");
     }
 }
 
 void CodeGenerator::visit(const BinaryExpression* node) {
     visit(node->right.get());
     visit(node->left.get());
-    pop_into_rax();
-    emit("  pop rbx");
+    emit("  popq %rbx");
+    emit("  popq %rax");
 
     switch (node->op) {
     case PLUS:
-        emit("  add rax, rbx");
+        emit("  addq %rbx, %rax");
         break;
     case MINUS:
-        emit("  sub rax, rbx");
+        emit("  subq %rbx, %rax");
         break;
     case ASTERISK:
-        emit("  imul rax, rbx");
+        emit("  imulq %rbx, %rax");
         break;
     case SLASH:
-        emit("  xor rdx, rdx");
-        emit("  idiv rbx");
+        emit("  xorq %rdx, %rdx");
+        emit("  idivq %rbx");
         break;
     default:
         error("Unsupported binary operator.");
@@ -164,8 +156,8 @@ void CodeGenerator::visit(const BinaryExpression* node) {
 }
 
 void CodeGenerator::defineVariable(const std::string& name) {
-    stackOffsetCounter_ += WORD_SIZE;
-    symbolTable_[name] = { stackOffsetCounter_ };
+    stackOffsetCounter_ -= WORD_SIZE;
+    symbolTable_[name] = { -stackOffsetCounter_ };
 }
 
 Symbol* CodeGenerator::getSymbol(const std::string& name) {
@@ -174,9 +166,9 @@ Symbol* CodeGenerator::getSymbol(const std::string& name) {
 }
 
 void CodeGenerator::pop_into_rax() {
-    emit("  pop rax");
+    emit("  popq %rax");
 }
 
 void CodeGenerator::push_from_rax() {
-    emit("  push rax");
+    emit("  pushq %rax");
 }

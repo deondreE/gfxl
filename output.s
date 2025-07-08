@@ -1,57 +1,56 @@
-.intel_syntax noprefix
 .global _start
 .text
 main:
-  push rbp
-  mov rbp, rsp
-  push 3
-  push 2
-  pop rax
-  pop rbx
-  imul rax, rbx
-  push rax
-  push 1
-  pop rax
-  pop rbx
-  add rax, rbx
-  push rax
-  pop rax
-  mov QWORD PTR [rbp - 8], rax
-  push 2
-  push 4
-  push QWORD PTR [rbp - 8]
-  pop rax
-  pop rbx
-  add rax, rbx
-  push rax
-  pop rax
-  pop rbx
-  xor rdx, rdx
-  idiv rbx
-  push rax
-  pop rax
-  mov QWORD PTR [rbp - 16], rax
-  push 3
-  push 2
-  push 1
-  pop rax
-  pop rbx
-  add rax, rbx
-  push rax
-  pop rax
-  pop rbx
-  add rax, rbx
-  push rax
-  pop rdi
+  pushq %rbp
+  movq %rsp, %rbp
+  pushq $3
+  pushq $2
+  popq %rbx
+  popq %rax
+  imulq %rbx, %rax
+  pushq %rax
+  pushq $1
+  popq %rbx
+  popq %rax
+  addq %rbx, %rax
+  pushq %rax
+  popq %rax
+  movq %rax, -8(%rbp)
+  pushq $2
+  pushq $4
+  pushq -8(%rbp)
+  popq %rbx
+  popq %rax
+  addq %rbx, %rax
+  pushq %rax
+  popq %rbx
+  popq %rax
+  xorq %rdx, %rdx
+  idivq %rbx
+  pushq %rax
+  popq %rax
+  movq %rax, -16(%rbp)
+  pushq $3
+  pushq $2
+  pushq $1
+  popq %rbx
+  popq %rax
+  addq %rbx, %rax
+  pushq %rax
+  popq %rbx
+  popq %rax
+  addq %rbx, %rax
+  pushq %rax
+  popq %rdi
   call print_int
-  push QWORD PTR [rbp - 8]
-  pop rdi
+  pushq -8(%rbp)
+  popq %rdi
   call print_int
-  mov rax, 60
-  xor rdi, rdi
+  movq $60, %rax
+  xorq %rdi, %rdi
   syscall
 _start:
   call main
-  mov rax, 60
-  xor rdi, rdi
+  movq $60, %rax
+  xorq %rdi, %rdi
   syscall

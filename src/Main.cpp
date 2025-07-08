@@ -1,9 +1,9 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include "lexer.h"
-#include "token.h"
-#include "parser.h"
+#include "Lexer.h"
+#include "Token.h"
+#include "Parser.h"
 #include "ast.h"
 #include "Codegen.h"
 
