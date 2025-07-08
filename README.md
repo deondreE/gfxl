@@ -8,23 +8,22 @@ Rethinking low level access in the graphics space from the ground up, making it 
 
 ## Grammer
 
+```ebnf
 identifier     = letter , { letter | digit | "_" } ;
 letter         = "a" … "z" | "A" … "Z" | "_" ;
 digit          = "0" … "9" ;
 
 intLiteral     = digit , { digit } ;
 floatLiteral   = digit , { digit } , "." , digit , { digit } ;
-stringLiteral  = '"' , { ? any char except '"' ? } , '"' ;
+stringLiteral  = '"' , { ? any character except '"' ? } , '"' ;
 
-comment        = "//"
-blockComment   = "/*" , { ? not "*/" ? } , "*/" ;
-nestedBlockComment = "/* /* */"
-AssignOp :: = '=' | ':=' | '-=' | '*=' | '/='
+comment        = "//" , { ? any character except newline ? } ;
+blockComment   = "/*" , { ? any sequence not containing "*/" ? } , "*/" ;
 
-Keywords:
-    const func struct if else elif for ret break continue defer
-
-Operators:
-    = == != < > <= >= + - / % && || ! & | << >> += -= /= ++ -- ->
-
+keyword        = "if"
+               | "assert"
+               | "return"
+               | "while"
+               | "do" ;
+```
 
