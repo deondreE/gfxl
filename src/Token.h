@@ -19,7 +19,8 @@ enum TokenType {
 
 	SEMICOLON,
 	LPAREN,
-	RPAREN
+	RPAREN,
+	PRINT,
 };
 
 extern const std::map<TokenType, std::string> tokenTypeStrings;

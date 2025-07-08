@@ -1,4 +1,4 @@
-#include "Lexer.h"
+﻿#include "Lexer.h"
 #include <cctype>
 
 const std::map<TokenType, std::string> tokenTypeStrings = {
@@ -13,7 +13,8 @@ const std::map<TokenType, std::string> tokenTypeStrings = {
     {SLASH, "SLASH"},
     {SEMICOLON, "SEMICOLON"},
     {LPAREN, "LPAREN"},
-    {RPAREN, "RPAREN"}
+    {RPAREN, "RPAREN"},
+    {PRINT, "PRINT"}
 };
 
 std::string Token::toString() const {
@@ -30,52 +31,35 @@ Token Lexer::nextToken() {
 
     Token token;
 
-    switch (ch_) {
-    case '=':
-        token = { ASSIGN, "=" };
-        break;
-    case '+':
-        token = { PLUS, "+" };
-        break;
-    case '-':
-        token = { MINUS, "-" };
-        break;
-    case '*':
-        token = { ASTERISK, "*" };
-        break;
-    case '/':
-        token = { SLASH, "/" };
-        break;
-    case ';':
-        token = { SEMICOLON, ";" };
-        break;
-    case '(':
-        token = { LPAREN, "(" };
-        break;
-    case ')':
-        token = { RPAREN, ")" };
-        break;
-    case 0: // NULL Char EOF
-        token = { END_OF_FILE, "" };
-        break;
-    default:
-        if (isLetter(ch_)) {
-            token.literal = readIdentifier();
-            token.type = IDENTIFIER;
-            return token;
-        }
-        else if (isDigit(ch_)) {
-            token.literal = readNumber();
-            token.type = INT;
-            return token;
-        }
-        else {
-            token = { ILLEGAL, std::string(1, ch_) };
-        }
-        break;
+    // --- Identifiers or keywords ------------------------------------------
+    if (isLetter(ch_)) {
+        std::string literal = readIdentifier();        // advances position_
+        TokenType type = (literal == "print") ? PRINT  // keyword lookup
+            : IDENTIFIER;
+        return { type, literal };
     }
 
-    readChar();
+    // --- Numeric literals --------------------------------------------------
+    if (isDigit(ch_)) {
+        std::string literal = readNumber();            // advances position_
+        return { INT, literal };
+    }
+
+    // --- Single‑character tokens ------------------------------------------
+    switch (ch_) {
+    case '=':  token = { ASSIGN, "=" };     break;
+    case '+':  token = { PLUS, "+" };       break;
+    case '-':  token = { MINUS, "-" };      break;
+    case '*':  token = { ASTERISK, "*" };   break;
+    case '/':  token = { SLASH, "/" };      break;
+    case ';':  token = { SEMICOLON, ";" };  break;
+    case '(':  token = { LPAREN, "(" };     break;
+    case ')':  token = { RPAREN, ")" };     break;
+    case 0:    token = { END_OF_FILE, "" }; break; // NUL ⇒ EOF
+    default:   token = { ILLEGAL, std::string(1, ch_) }; break;
+    }
+
+    readChar();  // advance past the single‑character token
     return token;
 }
 

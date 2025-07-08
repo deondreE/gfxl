@@ -39,6 +39,7 @@ private:
     void visit(const Expression* node); // Virtual dispatch for expressions
     void visit(const IntegerLiteral* node);
     void visit(const IdentifierExpr* node);
+    void visit(const PrintStatement* node);
     void visit(const BinaryExpression* node);
 
     // --- Symbol Table Management ---

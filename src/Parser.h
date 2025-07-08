@@ -1,14 +1,13 @@
-#ifndef PARSER_H
-#define PARSER_H
+#pragma once
 
 #include <vector>
 #include <string>
-#include <memory>   // For std::unique_ptr
-#include <map>      // For precedence map
+#include <memory> 
+#include <map>
 
 #include "lexer.h"
 #include "token.h"
-#include "ast.h"    // Include AST node definitions
+#include "ast.h"
 
 // Define operator precedences (higher value means higher precedence)
 enum Precedence {
@@ -53,16 +52,14 @@ private:
     std::unique_ptr<Expression> parseIntegerLiteral();
     std::unique_ptr<Expression> parseIdentifier();
     std::unique_ptr<Expression> parseGroupedExpression();
+    std::unique_ptr<PrintStatement> parsePrintStatement();
     std::unique_ptr<Expression> parsePrefixExpression(); // Handles INT, IDENTIFIER, LPAREN prefix
     std::unique_ptr<Expression> parseInfixExpression(std::unique_ptr<Expression> left_expr); // Handles binary ops
 
-    // Helpers to get precedence values
     Precedence peekPrecedence() const;
     Precedence currentPrecedence() const;
 
-    // Dispatch table for prefix parsing functions
     using PrefixParseFn = std::unique_ptr<Expression>(Parser::*)();
-    // Dispatch table for infix parsing functions
     using InfixParseFn = std::unique_ptr<Expression>(Parser::*)(std::unique_ptr<Expression>);
 
     std::map<TokenType, PrefixParseFn> prefixParseFns;
@@ -71,7 +68,5 @@ private:
     void registerPrefix(TokenType token_type, PrefixParseFn fn);
     void registerInfix(TokenType token_type, InfixParseFn fn);
 
-    void setupParseFunctions(); // To register all parsing functions
+    void setupParseFunctions(); 
 };
-
-#endif // PARSER_H

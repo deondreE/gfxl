@@ -1,73 +1,84 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 #include <vector>
 #include <memory>
 #include "Token.h"
 
-// Forward declarations for mutually recursive types (e.g., Program needs Statement)
-class Program;
-class Statement;
-class Expression;
-class IntegerLiteral;
-class IdentifierExpr;
-class BinaryExpression;
-class ExpressionStatement;
-class AssignmentStatement;
-
+// ─────────────────── Base node ───────────────────
 class ASTNode {
 public:
-	virtual ~ASTNode() = default;
+    virtual ~ASTNode() = default;
 };
 
+// ─────────────────── Expressions ─────────────────
 class Expression : public ASTNode {};
 
+// Integer literal  e.g.  42
 class IntegerLiteral : public Expression {
 public:
+    explicit IntegerLiteral(int val) : value(val) {}
     int value;
-    IntegerLiteral(int val) : value(val) {}
 };
 
+// Identifier expression  e.g.  foo
 class IdentifierExpr : public Expression {
 public:
+    explicit IdentifierExpr(std::string n) : name(std::move(n)) {}
     std::string name;
-    IdentifierExpr(const std::string& n) : name(n) {}
 };
 
+// Binary expression  e.g.  a + b
 class BinaryExpression : public Expression {
 public:
-    std::unique_ptr<Expression> left;
-    TokenType op; // Token type for the operator (PLUS, MINUS, etc.)
-    std::unique_ptr<Expression> right;
-
-    BinaryExpression(std::unique_ptr<Expression> l, TokenType o, std::unique_ptr<Expression> r)
+    BinaryExpression(std::unique_ptr<Expression> l,
+        TokenType                    o,
+        std::unique_ptr<Expression> r)
         : left(std::move(l)), op(o), right(std::move(r)) {
     }
+
+    std::unique_ptr<Expression> left;
+    TokenType                   op;
+    std::unique_ptr<Expression> right;
 };
 
+// ─────────────────── Statements ──────────────────
 class Statement : public ASTNode {};
 
+// Bare expression used as a statement  e.g.  a + 1;
 class ExpressionStatement : public Statement {
 public:
+    explicit ExpressionStatement(std::unique_ptr<Expression> expr)
+        : expression(std::move(expr)) {
+    }
     std::unique_ptr<Expression> expression;
-    ExpressionStatement(std::unique_ptr<Expression> expr) : expression(std::move(expr)) {}
 };
 
+// Assignment  e.g.  x = 5;
 class AssignmentStatement : public Statement {
 public:
-    std::unique_ptr<IdentifierExpr> identifier; // The variable being assigned to
-    std::unique_ptr<Expression> value;          // The expression whose result is assigned
-
-    AssignmentStatement(std::unique_ptr<IdentifierExpr> id, std::unique_ptr<Expression> val)
+    AssignmentStatement(std::unique_ptr<IdentifierExpr> id,
+        std::unique_ptr<Expression>    val)
         : identifier(std::move(id)), value(std::move(val)) {
     }
+    std::unique_ptr<IdentifierExpr> identifier;
+    std::unique_ptr<Expression>     value;
 };
 
+// print <expr>;
+class PrintStatement : public Statement {
+public:
+    explicit PrintStatement(std::unique_ptr<Expression> expr)
+        : expression(std::move(expr)) {
+    }
+    std::unique_ptr<Expression> expression;
+};
+
+// ─────────────────── Program root ────────────────
 class Program : public ASTNode {
 public:
-    std::vector<std::unique_ptr<Statement>> statements;
-
     void AddStatement(std::unique_ptr<Statement> stmt) {
-        statements.push_back(std::move(stmt));
+        statements.emplace_back(std::move(stmt));
     }
+    std::vector<std::unique_ptr<Statement>> statements;
 };

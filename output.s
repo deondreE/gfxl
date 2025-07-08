@@ -2,8 +2,8 @@
 .global _start
 .text
 main:
- push rbp
- mov rbp, rsp
+  push rbp
+  mov rbp, rsp
   push 3
   push 2
   pop rax
@@ -31,11 +31,27 @@ main:
   push rax
   pop rax
   mov QWORD PTR [rbp - 16], rax
- mov rax, 60
- xor rdi, rdi
- syscall
+  push 3
+  push 2
+  push 1
+  pop rax
+  pop rbx
+  add rax, rbx
+  push rax
+  pop rax
+  pop rbx
+  add rax, rbx
+  push rax
+  pop rdi
+  call print_int
+  push QWORD PTR [rbp - 8]
+  pop rdi
+  call print_int
+  mov rax, 60
+  xor rdi, rdi
+  syscall
 _start:
- call main
- mov rax, 60
- xor rdi, rdi
- syscall
+  call main
+  mov rax, 60
+  xor rdi, rdi
+  syscall

@@ -67,7 +67,10 @@ std::unique_ptr<Program> Parser::parseProgram() {
 }
 
 std::unique_ptr<Statement> Parser::parseStatement() {
-    if (currentTokenIs(IDENTIFIER) && peekTokenIs(ASSIGN)) {
+    if (currentTokenIs(PRINT)) {
+        return parsePrintStatement();
+    }
+    else if (currentTokenIs(IDENTIFIER) && peekTokenIs(ASSIGN)) {
         return parseAssignmentStatement();
     }
     else {
@@ -162,6 +165,21 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence prec) {
     return left_expr;
 }
 
+
+std::unique_ptr<PrintStatement> Parser::parsePrintStatement() {
+    nextToken(); // Move to the expression after 'print'
+
+    std::unique_ptr<Expression> expr = parseExpression(LOWEST);
+    if (!expr) {
+        return nullptr;
+    }
+
+    if (peekTokenIs(SEMICOLON)) {
+        nextToken();
+    }
+
+    return std::make_unique<PrintStatement>(std::move(expr));
+}
 
 std::unique_ptr<Expression> Parser::parseIntegerLiteral() {
     try {
