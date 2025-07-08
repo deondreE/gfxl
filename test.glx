@@ -1,1 +1,2 @@
-print "Hello from Tiny GLX!";
+a = 1 + 2 * 3;
+b = (a + 4) / 2;

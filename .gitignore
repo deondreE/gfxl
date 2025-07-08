@@ -11,6 +11,11 @@ Makefile
 build
 bin-int
 bin
+*.vcxproj
+*.sln
+*.swp
+*.user
+.vs
 
 # Precompiled Headers
 *.gch
