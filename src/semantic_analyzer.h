@@ -48,13 +48,29 @@ public:
         TokenType valueType = node.value->resolvedType;
         SymbolEntry* entry = currentScope->resolve(node.identifier->name);
         if (!entry) {
-            if (!currentScope->define(node.identifier->name, SYM_VAR, INT)) {
-                addError("Internal Error: Failed to define variable '" + node.identifier->name + "'.");
-            } else {}
+            if (valueType == ILLEGAL) {
+                addError("Semantic Error: Attempting to define variable '" + node.identifier->name + "' with an unresolved type.");
+                currentScope->define(node.identifier->name, SYM_VAR, ILLEGAL);
+                node.identifier->resolvedType = ILLEGAL;
+            }
+            else {// <--- HERE!
+                currentScope->define(node.identifier->name, SYM_VAR, valueType); 
+                node.identifier->resolvedType = valueType;
+            }
         }
+        else {
+            node.identifier->resolvedType = entry->declaredTokenType;
 
-        if (valueType == ILLEGAL) {
-            node.identifier->resolvedType = ILLEGAL;
+            if (node.identifier->resolvedType != valueType) {
+                if(valueType == ILLEGAL) {
+                    addError("Semantic Warning: Assignment value for '" + node.identifier->name + "' has an unresolved type. Variable type remains " + tokenTypeStrings.at(node.identifier->resolvedType) + ".");
+                }
+                else {
+                    addError("Semantic Error: Type mismatch in assignment to '" + node.identifier->name + "'. Expected " + tokenTypeStrings.at(node.identifier->resolvedType) + ", but got " + tokenTypeStrings.at(valueType) + ".");
+                }
+
+                node.identifier->resolvedType = ILLEGAL;
+            }
         }
     }
 
@@ -64,6 +80,10 @@ public:
 
     void visit(PrintStatement& node) override {
         node.expression->accept(*this);
+
+        if (node.expression->resolvedType == ILLEGAL) {
+            addError("Semantic Error: PRINT statement argument has an unresolved or invalid type.");
+        }
     }
     
     void visit(BooleanLiteral& node) override {
@@ -82,9 +102,7 @@ public:
     }
 
     void visit(IntegerLiteral& node) override {
-        // Integer literals implicitly have type INT.
-        // The AST node itself doesn't carry a 'resolvedType' for IntegerLiteral.
-        // We rely on the parent (e.g., BinaryExpression) to infer it.
+        node.resolvedType = INT;
     }
 
     void visit(BinaryExpression& node) override {

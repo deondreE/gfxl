@@ -46,6 +46,7 @@ private:
     void emitMainPrologue();
     void emitMainEpilogue();
     void emitPrintInteger(const std::string& reg); // Pass register holding integer (e.g., "rax")
+    std::string getRegisterPart(TokenType type, const std::string& baseReg) const;
     void emitPrintBoolean(const std::string& reg); // Pass register holding 0/1 boolean (e.g., "al")
 
     void visitProgram(const Program* node);
@@ -67,6 +68,7 @@ private:
     CodegenSymbol* getSymbol(const std::string& name);
 
     std::string getRegSize(TokenType type) const; // Added const
+    std::string getArgRegister(int argIndex) const;
     std::string getRegName(TokenType type, const std::string& baseReg) const;
 
     void visit(BooleanLiteral& node);

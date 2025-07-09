@@ -4,6 +4,8 @@
 #include <stdexcept> // For std::runtime_error
 #include <random>    // For std::mt19937_64 and std::uniform_int_distribution
 #include <chrono>    // For seeding the random number generator
+#include <string>
+#include <map>
 
 // External declaration for tokenTypeStrings (defined in Token.cpp)
 extern const std::map<TokenType, std::string> tokenTypeStrings;
@@ -80,11 +82,11 @@ void CodeGenerator::emitMainPrologue() {
         ss << "main:\n";
         emit("push rbp");               // Save base pointer
         emit("mov rbp, rsp");           // Set new base pointer
-        // Stack alignment for Linux x64: RSP must be 16-byte aligned before a call instruction.
-        // `call` pushes 8 bytes, so RSP becomes `N-8`. If N was 16-aligned, N-8 is not.
-        // If stackOffsetCounter_ indicates we'll push an odd number of qwords later,
-        // we might need an initial push or sub rsp here.
-        // For simplicity, we'll assume stack management is handled by `sub rsp` only when defining variables.
+        // Note: Linux x64 ABI requires RSP to be 16-byte aligned BEFORE a call.
+        // `call` pushes 8 bytes, so if RSP is currently 16-byte aligned,
+        // after push it becomes 8-byte aligned. The function called must handle alignment.
+        // For simplicity, we rely on C library functions often handling this or adjust later if needed.
+        // Local variables will be allocated via `sub rsp`.
     }
     else if (targetPlatform_ == PLATFORM_WINDOWS_MINGW) {
         ss << ".intel_syntax noprefix\n"; // Using Intel syntax
@@ -93,7 +95,7 @@ void CodeGenerator::emitMainPrologue() {
         ss << "main:\n";
         emit("push rbp");               // Save base pointer
         emit("mov rbp, rsp");           // Set new base pointer
-        // Windows x64 calling convention: reserve 32 bytes of "shadow space"
+        // Windows x64 calling convention: reserve 32 bytes of "shadow space" for caller-saved regs
         emit("sub rsp, 32");
     }
     else {
@@ -105,12 +107,14 @@ void CodeGenerator::emitMainEpilogue() {
     if (targetPlatform_ == PLATFORM_LINUX || targetPlatform_ == PLATFORM_MACOS) {
         emitComment("Main Epilogue");
         // Deallocate local variables by restoring RSP to RBP's original value
-        if (stackOffsetCounter_ < 0) { // If variables were allocated
-            emit("add rsp, " + std::to_string(-stackOffsetCounter_)); // Deallocate all local vars
+        // We allocated space using `sub rsp`, so we add it back.
+        // `stackOffsetCounter_` is negative, so we add its absolute value.
+        if (stackOffsetCounter_ < 0) {
+            emit("add rsp, " + std::to_string(-stackOffsetCounter_));
         }
-        emit("mov rsp, rbp");           // Restore stack pointer
+        emit("mov rsp, rbp");           // Restore stack pointer to RBP's value
         emit("pop rbp");                // Restore base pointer
-        emit("mov eax, 0");             // Return 0 (success)
+        emit("mov eax, 0");             // Standard return code 0 for success in EAX/RAX
         emit("ret");
     }
     else if (targetPlatform_ == PLATFORM_WINDOWS_MINGW) {
@@ -120,7 +124,7 @@ void CodeGenerator::emitMainEpilogue() {
             emit("add rsp, " + std::to_string(-stackOffsetCounter_));
         }
         emit("add rsp, 32");            // Clean up shadow space
-        emit("mov rsp, rbp");           // Restore stack pointer
+        emit("mov rsp, rbp");           // Restore stack pointer to RBP's value
         emit("pop rbp");                // Restore base pointer
         emit("mov eax, 0");             // Return 0 (success)
         emit("ret");
@@ -130,51 +134,50 @@ void CodeGenerator::emitMainEpilogue() {
     }
 }
 
-void CodeGenerator::emitPrintInteger(const std::string& reg) { // reg holds the int value (e.g., "rax")
+void CodeGenerator::emitPrintInteger(const std::string& valueReg) {
     emitComment("Call print_int");
-    if (targetPlatform_ == PLATFORM_LINUX) {
-        emit("mov rdi, " + reg); // First arg in RDI for Linux x64
-        // If current stack frame is not 16-byte aligned before the call,
-        // we might need to `sub rsp, 8` before the call and `add rsp, 8` after.
-        // A simpler way: push RDI, RSI, RDX, RCX, R8, R9 before ANY function call
-        // if they are volatile (caller-saved) registers and you need their values.
-        // For simplicity now, we assume `print_int` only uses RDI.
-        emit("call print_int");
-    }
-    else if (targetPlatform_ == PLATFORM_WINDOWS_MINGW) {
-        emit("mov rcx, " + reg); // First arg in RCX for Windows x64
-        // Windows calling convention requires caller to reserve 32 bytes of "shadow space"
-        // This is done in the prologue `sub rsp, 32` already.
-        // Need to save XMM registers if using float arguments (not applicable here).
-        emit("call print_int");
-    }
-    else if (targetPlatform_ == PLATFORM_MACOS) {
-        emit("mov rdi, " + reg); // First arg in RDI for macOS x64 (similar to Linux)
-        emit("call _print_int"); // macOS often prepends '_' to C function names
+    // print_int typically expects the integer value in the first argument register.
+    // For Linux/macOS, this is RDI. For Windows, it's RCX.
+    std::string argReg = getArgRegister(0);
+    emit("mov " + argReg + ", " + getRegisterPart(INT, valueReg)); // Move value to appropriate part of arg register
+
+    // Call the helper function
+    if (targetPlatform_ == PLATFORM_MACOS) { // macOS often prepends '_' to C function names
+        emit("call _print_int");
     }
     else {
-        error("Codegen PrintInteger: Unsupported platform for print_int.");
+        emit("call print_int");
     }
 }
 
-void CodeGenerator::emitPrintBoolean(const std::string& reg) { // reg holds the boolean value (e.g., "al")
+std::string CodeGenerator::getRegisterPart(TokenType type, const std::string& baseReg) const {
+    if (baseReg.empty()) return ""; // Should not happen
+
+    if (type == BOOL) {
+        if (baseReg.length() > 1 && baseReg[0] == 'r') {
+            return baseReg[0] + std::string("l") + baseReg.substr(1); // e.g., "rax" -> "al"
+        }
+        // Handle cases where baseReg might already be a smaller register (less likely with our setup)
+        if (baseReg.length() == 1) return baseReg; // e.g. "a" -> "a" (assuming it's AL)
+        return ""; // Fallback
+    }
+
+    // For INT, we use the full register (e.g., RAX)
+    return baseReg;
+}
+
+void CodeGenerator::emitPrintBoolean(const std::string& valueReg) {
     emitComment("Call print_bool");
-    // The `print_bool` helper function (in print_helpers.c) is assumed to take a `bool`
-    // which in C is often 1 byte, so we can pass 'al' directly.
-    if (targetPlatform_ == PLATFORM_LINUX) {
-        emit("mov rdi, " + reg); // First arg in RDI
-        emit("call print_bool");
-    }
-    else if (targetPlatform_ == PLATFORM_WINDOWS_MINGW) {
-        emit("mov rcx, " + reg); // First arg in RCX
-        emit("call print_bool");
-    }
-    else if (targetPlatform_ == PLATFORM_MACOS) {
-        emit("mov rdi, " + reg); // First arg in RDI
-        emit("call _print_bool"); // macOS often prepends '_'
+    // print_bool expects a boolean (0 or 1), usually passed as a byte.
+    // We need to get the specific byte register (e.g., 'al' from 'rax').
+    std::string argReg = getArgRegister(0);
+    emit("mov " + argReg + ", " + getRegisterPart(BOOL, valueReg)); // Move the byte value to arg register
+
+    if (targetPlatform_ == PLATFORM_MACOS) {
+        emit("call _print_bool");
     }
     else {
-        error("Codegen PrintBoolean: Unsupported platform for print_bool.");
+        emit("call print_bool");
     }
 }
 
@@ -204,29 +207,34 @@ void CodeGenerator::visitStatement(const Statement* node) {
 void CodeGenerator::visitAssignmentStatement(const AssignmentStatement* node) {
     emitComment("Assignment: " + node->identifier->name);
 
-    // 1. Generate code for the right-hand side expression
-    visitExpression(node->value.get()); // Result of expression is in RAX/AL
-
-    // Get the resolved type of the value (from semantic analysis)
+    // 1. Generate code for the right-hand side expression.
+    // The result will be in RAX (or AL zero-extended to RAX).
+    visitExpression(node->value.get());
     TokenType valueType = node->value->resolvedType;
-    std::string reg_to_move = getRegName(valueType, "rax");
 
-    // 2. Define or retrieve the variable's stack location
+    // 2. Ensure variable is defined in our codegen symbol table and on the stack.
     CodegenSymbol* symbol = getSymbol(node->identifier->name);
-    if (!symbol) { // If variable not yet defined in codegen's symbol table
-        // This means it's the first assignment to a new variable.
-        // Semantic analyzer should have caught undefined uses before this.
-        defineVariable(node->identifier->name, valueType);
-        symbol = getSymbol(node->identifier->name); // Retrieve the newly defined symbol
+    if (!symbol) {
+        // This is the first time we're seeing this variable in codegen.
+        // Define it on the stack. Semantic analysis should have guaranteed it's valid.
+        defineVariable(node->identifier->name, valueType); // This also updates stackOffsetCounter_
+        symbol = getSymbol(node->identifier->name);       // Get the newly defined symbol
+    }
+    else {
+        // If it's already defined, ensure its type matches (though sema should check this).
+        // For simplicity, we allow re-assignment to potentially different types if the language supported it,
+        // but here we'll assume types are static and should match or be compatible.
+        // We don't need to re-allocate stack space.
     }
 
-    if (!symbol) { // Should not happen if defineVariable works correctly
-        error("Internal Codegen Error: Could not define/retrieve symbol for '" + node->identifier->name + "'.");
+    if (!symbol) { // Defensive check
+        error("Internal Codegen Error: Failed to get symbol for '" + node->identifier->name + "' after definition.");
         return;
     }
 
-    // 3. Store the value from RAX/AL into the variable's stack location
-    emit("mov " + getRegSize(valueType) + " ptr [rbp" + std::to_string(symbol->stackOffset) + "], " + reg_to_move);
+    // 3. Store the value from RAX/AL into the variable's stack location.
+    // Use appropriate register part and memory size.
+    emit("mov " + getRegSize(valueType) + " ptr [rbp" + std::to_string(symbol->stackOffset) + "], " + getRegisterPart(valueType, "rax"));
 }
 
 void CodeGenerator::visitExpressionStatement(const ExpressionStatement* node) {
@@ -237,18 +245,21 @@ void CodeGenerator::visitExpressionStatement(const ExpressionStatement* node) {
 
 void CodeGenerator::visitPrintStatement(const PrintStatement* node) {
     emitComment("Print Statement");
-    visitExpression(node->expression.get()); // Evaluate expression to print (result in RAX/AL)
+    // 1. Generate code to evaluate the expression to be printed.
+    // The result will be in RAX (or AL zero-extended to RAX).
+    visitExpression(node->expression.get());
 
     TokenType exprType = node->expression->resolvedType;
 
+    // 2. Call the appropriate print helper based on the expression's resolved type.
     if (exprType == INT) {
-        emitPrintInteger("rax");
+        emitPrintInteger("rax"); // Pass the integer value in RAX
     }
     else if (exprType == BOOL) {
-        emitPrintBoolean("al"); // Use AL as it contains the 0/1 boolean value
+        emitPrintBoolean("rax"); // Pass the boolean value (in AL, zero-extended to RAX)
     }
     else {
-        error("Codegen Error: Attempting to print an unsupported type (TokenType: " + tokenTypeStrings.at(exprType) + ").");
+        error("Attempting to print an unsupported type (TokenType: " + tokenTypeStrings.at(exprType) + ").");
     }
 }
 
@@ -274,67 +285,76 @@ void CodeGenerator::visitIntegerLiteral(const IntegerLiteral* node) {
     emitComment("Integer Literal: " + std::to_string(node->value));
     emit("mov rax, " + std::to_string(node->value)); // Load integer into RAX
 }
-
+    
 void CodeGenerator::visitBooleanLiteral(const BooleanLiteral* node) {
     emitComment("Boolean Literal: " + node->value ? "true" : "false");
-    emit("mov al, " + std::to_string(node->value ? 1 : 0)); // Load 1 for true, 0 for false into AL
-    emit("movzx rax, al"); // Zero-extend AL to RAX (for consistency in expressions expecting 64-bit)
+    // Load 1 for true, 0 for false into AL, then zero-extend to RAX for consistency.
+    emit("mov al, " + std::to_string(node->value ? 1 : 0));
+    emit("movzx rax, al"); // Zero-extend AL to RAX
 }
 
 void CodeGenerator::visitIdentifierExpr(const IdentifierExpr* node) {
     emitComment("Identifier: " + node->name);
     CodegenSymbol* symbol = getSymbol(node->name);
     if (!symbol) {
-        error("Codegen Error: Undefined variable used '" + node->name + "'. (Should be caught by semantic analysis)");
+        // This indicates a serious semantic analysis failure if not caught earlier.
+        error("Codegen Error: Undefined variable used '" + node->name + "'.");
         return;
     }
-    // Load the value from stack into RAX/AL based on the symbol's type
-    emit("mov " + getRegName(symbol->type, "rax") + ", " + getRegSize(symbol->type) + " ptr [rbp" + std::to_string(symbol->stackOffset) + "]");
+
+    // Load the value from the variable's stack location into RAX/AL based on its type.
+    emit("mov " + getRegSize(symbol->type) + " ptr [rbp" + std::to_string(symbol->stackOffset) + "], " + getRegisterPart(symbol->type, "rax"));
 }
 
 void CodeGenerator::visitBinaryExpression(const BinaryExpression* node) {
     emitComment("Binary Expression: " + tokenTypeStrings.at(node->op));
 
-    // Evaluate right operand first
-    visitExpression(node->right.get()); // Result in RAX/AL
-    emit("push rax");                   // Push RAX (or AL zero-extended to RAX) to stack
-
-    // Evaluate left operand
-    visitExpression(node->left.get());  // Result in RAX/AL
-
-    // Pop right operand into RBX/BL
-    emit("pop rbx");
-
-    TokenType leftType = node->left->resolvedType;
+    // Evaluate right operand first, its result will be in RAX (or AL zero-extended)
+    visitExpression(node->right.get());
     TokenType rightType = node->right->resolvedType;
-    TokenType resultType = node->resolvedType; // Type of the result of this expression
 
-    std::string opRegL_name = getRegName(leftType, "rax");
-    std::string opRegR_name = getRegName(rightType, "rbx");
-    std::string resultReg_name = getRegName(resultType, "rax"); // Final result should be in appropriate part of RAX
+    // Push the right operand's value onto the stack to preserve it
+    emit("push rax");
+    stackOffsetCounter_ += 8; // Account for the push on the stack
 
-    // All arithmetic operators are assumed to operate on INT, and result in INT
+    // Evaluate left operand, its result will be in RAX (or AL zero-extended)
+    visitExpression(node->left.get());
+    TokenType leftType = node->left->resolvedType;
+
+    // Pop the right operand into RBX (or BL for boolean operations)
+    emit("pop rbx");
+    stackOffsetCounter_ -= 8; // Account for the pop
+
+    // Determine the correct register parts for operation based on type
+    std::string leftReg = getRegisterPart(leftType, "rax");
+    std::string rightReg = getRegisterPart(rightType, "rbx");
+    TokenType resultType = node->resolvedType; // This is the type of the expression's result
+
+    // Perform the operation. The result is expected to be in RAX (or AL zero-extended).
     switch (node->op) {
     case PLUS:
-        emit("add " + opRegL_name + ", " + opRegR_name);
+        emit("add " + getRegisterPart(INT, "rax") + ", " + getRegisterPart(INT, "rbx"));
         break;
     case MINUS:
-        emit("sub " + opRegL_name + ", " + opRegR_name);
+        emit("sub " + getRegisterPart(INT, "rax") + ", " + getRegisterPart(INT, "rbx"));
         break;
     case ASTERISK:
-        // imul can take one operand (multiplies RAX by operand)
-        emit("imul " + opRegR_name);
+        // For signed multiplication, IMUL is used.
+        // `imul rbx` will multiply RAX by RBX, result in RAX.
+        emit("imul " + getRegisterPart(INT, "rbx"));
         break;
     case SLASH:
-        // For signed division: CQO extends RAX into RDX:RAX
-        emit("cqo");
-        emit("idiv " + opRegR_name); // Divides RDX:RAX by RBX, quotient in RAX, remainder in RDX
+        // For signed division: CQO extends RAX into RDX:RAX.
+        // Then RDX:RAX is divided by the operand (RBX).
+        // Quotient goes to RAX, remainder to RDX.
+        emit("cqo"); // Sign-extend RAX into RDX:RAX
+        emit("idiv " + getRegisterPart(INT, "rbx")); // Divide RDX:RAX by RBX
         break;
     default:
-        error("Codegen Error: Unhandled binary operator in code generation: " + tokenTypeStrings.at(node->op));
+        error("Unhandled binary operator in code generation: " + tokenTypeStrings.at(node->op));
         break;
     }
-    // Result of the operation is already in RAX (or AL extended to RAX), ready for next step.
+    // The result of the operation is now in RAX (or AL zero-extended to RAX if applicable).
 }
 
 // --- Symbol Table Management for CodeGen ---
@@ -367,6 +387,27 @@ std::string CodeGenerator::getRegSize(TokenType type) const {
     if (type == INT) return "qword"; // 64-bit
     if (type == BOOL) return "byte"; // 8-bit
     return "qword"; // Default or error case for safety
+}
+
+std::string CodeGenerator::getArgRegister(int argIndex) const {
+    if (targetPlatform_ == PLATFORM_LINUX || targetPlatform_ == PLATFORM_MACOS) {
+        // Linux/macOS x64 ABI: RDI, RSI, RDX, RCX, R8, R9
+        if (argIndex == 0) return "rdi";
+        if (argIndex == 1) return "rsi";
+        if (argIndex == 2) return "rdx";
+        if (argIndex == 3) return "rcx";
+        if (argIndex == 4) return "r8";
+        if (argIndex == 5) return "r9";
+    }
+    else if (targetPlatform_ == PLATFORM_WINDOWS_MINGW) {
+        // Windows x64 ABI: RCX, RDX, R8, R9
+        if (argIndex == 0) return "rcx";
+        if (argIndex == 1) return "rdx";
+        if (argIndex == 2) return "r8";
+        if (argIndex == 3) return "r9";
+    }
+    // Fallback if we need more registers or unsupported platform
+    return "";
 }
 
 std::string CodeGenerator::getRegName(TokenType type, const std::string& baseReg) const {

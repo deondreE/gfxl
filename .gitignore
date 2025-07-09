@@ -15,6 +15,9 @@ bin
 *.sln
 *.swp
 *.user
+ast.txt
+*.s
+program
 .vs
 
 # Precompiled Headers
