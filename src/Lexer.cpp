@@ -6,6 +6,7 @@ const std::map<TokenType, std::string> tokenTypeStrings = {
     {END_OF_FILE, "EOF"},
     {IDENTIFIER, "IDENTIFIER"},
     {INT, "INT"},
+    {BOOL, "BOOL"},
     {ASSIGN, "ASSIGN"},
     {PLUS, "PLUS"},
     {MINUS, "MINUS"},
@@ -14,11 +15,21 @@ const std::map<TokenType, std::string> tokenTypeStrings = {
     {SEMICOLON, "SEMICOLON"},
     {LPAREN, "LPAREN"},
     {RPAREN, "RPAREN"},
-    {PRINT, "PRINT"}
+    {PRINT, "PRINT"},
+    {TRUE, "TRUE"},
+    {FALSE, "FALSE"}
 };
 
 std::string Token::toString() const {
-    return "Token { Type: " + tokenTypeStrings.at(type) + ", Literal: '" + literal + "' }";
+    std::string typeStr;
+    auto it = tokenTypeStrings.find(type);
+    if (it != tokenTypeStrings.end()) {
+        typeStr = it->second;
+    }
+    else {
+        typeStr = "UNKNOWN_TOKEN_TYPE";
+    }
+    return "Token(Type: " + typeStr + ", Literal: \"" + literal + "\")";
 }
 
 Lexer::Lexer(const std::string& input) 

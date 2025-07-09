@@ -247,6 +247,8 @@ void Parser::setupParseFunctions() {
     registerPrefix(INT, &Parser::parseIntegerLiteral);
     registerPrefix(IDENTIFIER, &Parser::parseIdentifier);
     registerPrefix(LPAREN, &Parser::parseGroupedExpression);
+    registerPrefix(TRUE, &Parser::parseBooleanLiteral);
+    registerPrefix(FALSE, &Parser::parseBooleanLiteral);
 
     registerInfix(PLUS, &Parser::parseInfixExpression);
     registerInfix(MINUS, &Parser::parseInfixExpression);

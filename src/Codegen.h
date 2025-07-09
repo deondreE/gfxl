@@ -4,12 +4,21 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <sstream>
 
 #include "Token.h"
 #include "ast.h"
 
-struct Symbol {
+struct CodegenSymbol {
 	int stackOffset;
+    TokenType type;
+};
+
+enum TargetPlatform {
+    PLATFORM_UNKNOWN,
+    PLATFORM_LINUX,
+    PLATFORM_WINDOWS_MINGW,
+    PLATFORM_MACOS,
 };
 
 class CodeGenerator
@@ -21,33 +30,49 @@ public:
 	std::vector<std::string> getErrors() const;
 
 private:
-    std::vector<std::string> errors_;
-    std::string assembly_code_;
-    std::map<std::string, Symbol> symbolTable_; // Stores variable names and their stack locations
+    mutable std::vector<std::string> errors_;
+    std::stringstream ss;
+    std::map<std::string, CodegenSymbol> symbolTable_; // Stores variable names and their stack locations
     int stackOffsetCounter_; // Tracks the next available stack slot for new variables
+    TargetPlatform targetPlatform_;
+
+    void error(const std::string& msg);
 
     // Helper to add assembly instructions
     void emit(const std::string& instruction);
-    void error(const std::string& msg);
+    void emitComment(const std::string& comment);
+
+    // --- Platform-Specific Assembly Boilerplate ---
+    void emitMainPrologue();
+    void emitMainEpilogue();
+    void emitPrintInteger(const std::string& reg); // Pass register holding integer (e.g., "rax")
+    void emitPrintBoolean(const std::string& reg); // Pass register holding 0/1 boolean (e.g., "al")
+
+    void visitProgram(const Program* node);
 
     // --- AST Node Visitors (Recursive functions to generate code for specific nodes) ---
-    void visit(const Program* node);
-    void visit(const Statement* node); // Virtual dispatch for statements
-    void visit(const AssignmentStatement* node);
-    void visit(const ExpressionStatement* node);
+    void visitStatement(const Statement* node); // Dispatcher for generic Statement*
+    void visitAssignmentStatement(const AssignmentStatement* node);
+    void visitExpressionStatement(const ExpressionStatement* node);
+    void visitPrintStatement(const PrintStatement* node);
 
-    void visit(const Expression* node); // Virtual dispatch for expressions
-    void visit(const IntegerLiteral* node);
-    void visit(const IdentifierExpr* node);
-    void visit(const PrintStatement* node);
-    void visit(const BinaryExpression* node);
+    void visitExpression(const Expression* node); // Dispatcher for generic Expression*
+    void visitIntegerLiteral(const IntegerLiteral* node);
+    void visitBooleanLiteral(const BooleanLiteral* node);
+    void visitIdentifierExpr(const IdentifierExpr* node);
+    void visitBinaryExpression(const BinaryExpression* node);
 
-    // --- Symbol Table Management ---
-    void defineVariable(const std::string& name);
-    Symbol* getSymbol(const std::string& name);
+
+    void defineVariable(const std::string& name, TokenType type);
+    CodegenSymbol* getSymbol(const std::string& name);
+
+    std::string getRegSize(TokenType type) const; // Added const
+    std::string getRegName(TokenType type, const std::string& baseReg) const;
+
+    void visit(BooleanLiteral& node);
 
     // --- Assembly Utilities ---
-    void pop_into_rax();
-    void push_from_rax();
+    void push_value_from_rax(TokenType type);
+    void pop_value_into_rax(TokenType type);
 };
 

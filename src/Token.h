@@ -10,6 +10,7 @@ enum TokenType {
 	// Indentifier Literals
 	IDENTIFIER,
 	INT,
+	BOOL,
 
 	ASSIGN, // = 
 	PLUS, // +
@@ -20,9 +21,10 @@ enum TokenType {
 	SEMICOLON,
 	LPAREN, // (
 	RPAREN, // )
-	TRUE, // 0
-	FALSE, // 1
 	PRINT, 
+
+	TRUE,
+	FALSE,
 };
 
 extern const std::map<TokenType, std::string> tokenTypeStrings;

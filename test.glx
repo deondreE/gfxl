@@ -1,6 +1,9 @@
 a = 1 + 2 * 3;
 b = (a + 4) / 2;
 
+t = true
+f = false
+
 print(1 + 2 + 3);
 print(b);
 

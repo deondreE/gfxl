@@ -42,19 +42,17 @@ void printAST(const ASTNode* node, int indent = 0) {
     }
     else if (const AssignmentStatement* assign = dynamic_cast<const AssignmentStatement*>(node)) {
         std::cout << prefix << "Assignment:\n";
-        // Accessing resolvedType from IdentifierExpr, which now inherits from Expression
-        // Note: assign->identifier is a unique_ptr<IdentifierExpr>, so dereference then get resolvedType
         std::cout << prefix << "  Identifier: " << assign->identifier->name
             << " (Resolved Type: " << tokenTypeStrings.at(assign->identifier->resolvedType) << ")\n";
         std::cout << prefix << "  Value (Expression):\n";
-        printAST(assign->value.get(), indent + 2);
+        printAST(assign->value.get(), indent + 2); // Recursively print the value expression
     }
     else if (const ExpressionStatement* expr_stmt = dynamic_cast<const ExpressionStatement*>(node)) {
         std::cout << prefix << "ExpressionStatement (Resolved Type: "
             << tokenTypeStrings.at(expr_stmt->expression->resolvedType) << "):\n";
         printAST(expr_stmt->expression.get(), indent + 1);
     }
-    else if (const PrintStatement* print_stmt = dynamic_cast<const PrintStatement*>(node)) { // Added PrintStatement
+    else if (const PrintStatement* print_stmt = dynamic_cast<const PrintStatement*>(node)) {
         std::cout << prefix << "PrintStatement (Arg Type: "
             << tokenTypeStrings.at(print_stmt->expression->resolvedType) << "):\n";
         printAST(print_stmt->expression.get(), indent + 1);
@@ -68,20 +66,23 @@ void printAST(const ASTNode* node, int indent = 0) {
         printAST(bin_expr->right.get(), indent + 2);
     }
     else if (const IntegerLiteral* int_lit = dynamic_cast<const IntegerLiteral*>(node)) {
-        // IntegerLiteral now also has resolvedType from Expression base
         std::cout << prefix << "IntegerLiteral: " << int_lit->value
             << " (Resolved Type: " << tokenTypeStrings.at(int_lit->resolvedType) << ")\n";
     }
+    // NEW: Handle BooleanLiteral
+    else if (const BooleanLiteral* bool_lit = dynamic_cast<const BooleanLiteral*>(node)) { // <--- ADD THIS BLOCK
+        std::cout << prefix << "BooleanLiteral: " << (bool_lit->value ? "true" : "false")
+            << " (Resolved Type: " << tokenTypeStrings.at(bool_lit->resolvedType) << ")\n";
+    }
     else if (const IdentifierExpr* id_expr = dynamic_cast<const IdentifierExpr*>(node)) {
-        // IdentifierExpr now also has resolvedType from Expression base
         std::cout << prefix << "IdentifierExpr: " << id_expr->name
             << " (Resolved Type: " << tokenTypeStrings.at(id_expr->resolvedType) << ")\n";
     }
     else {
-        std::cout << prefix << "Unknown AST Node Type\n";
+        // This is the fallback if no other dynamic_cast matches
+        std::cout << prefix << "Unknown AST Node Type (Address: " << node << ", Literal: ??)\n";
     }
 }
-
 
 int main(int argc, char* argv[]) {
     std::string input_code;

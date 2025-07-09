@@ -28,6 +28,7 @@ public:
     int value;
     void accept(ASTVisitor& visitor) override;
 };
+
 class BooleanLiteral : public Expression {
 public:
     explicit BooleanLiteral(bool val) : value(val) {}

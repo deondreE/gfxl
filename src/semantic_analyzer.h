@@ -65,6 +65,10 @@ public:
     void visit(PrintStatement& node) override {
         node.expression->accept(*this);
     }
+    
+    void visit(BooleanLiteral& node) override {
+        node.resolvedType = BOOL;
+    }
 
     void visit(IdentifierExpr& node) override {
         SymbolEntry* entry = currentScope->resolve(node.name);
