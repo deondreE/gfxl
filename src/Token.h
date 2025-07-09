@@ -4,23 +4,25 @@
 #include <map>
 
 enum TokenType {
-	ILLEGAL,
-	END_OF_FILE,
+	ILLEGAL, // '\0'
+	END_OF_FILE, 
 
 	// Indentifier Literals
 	IDENTIFIER,
 	INT,
 
 	ASSIGN, // = 
-	PLUS,
-	MINUS,
-	ASTERISK,
-	SLASH,
+	PLUS, // +
+	MINUS, // - 
+	ASTERISK, // *
+	SLASH, // /
 
 	SEMICOLON,
-	LPAREN,
-	RPAREN,
-	PRINT,
+	LPAREN, // (
+	RPAREN, // )
+	TRUE, // 0
+	FALSE, // 1
+	PRINT, 
 };
 
 extern const std::map<TokenType, std::string> tokenTypeStrings;

@@ -33,9 +33,22 @@ Token Lexer::nextToken() {
 
     // --- Identifiers or keywords ------------------------------------------
     if (isLetter(ch_)) {
-        std::string literal = readIdentifier();        // advances position_
-        TokenType type = (literal == "print") ? PRINT  // keyword lookup
-            : IDENTIFIER;
+        std::string literal = readIdentifier();
+
+        TokenType type; // Declare the TokenType variable
+
+        if (literal == "print") {
+            type = PRINT;
+        }
+        else if (literal == "true") {
+            type = TRUE;
+        }
+        else if (literal == "false") {
+            type = FALSE;
+        }
+        else {
+            type = IDENTIFIER;
+        }
         return { type, literal };
     }
 

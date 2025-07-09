@@ -53,6 +53,7 @@ private:
     std::unique_ptr<Expression> parseIdentifier();
     std::unique_ptr<Expression> parseGroupedExpression();
     std::unique_ptr<PrintStatement> parsePrintStatement();
+    std::unique_ptr<Expression> parseBooleanLiteral();
     std::unique_ptr<Expression> parsePrefixExpression(); // Handles INT, IDENTIFIER, LPAREN prefix
     std::unique_ptr<Expression> parseInfixExpression(std::unique_ptr<Expression> left_expr); // Handles binary ops
 

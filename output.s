@@ -1,5 +1,6 @@
-.global _start
 .text
+  .globl main
+  .globl print_int
 main:
   pushq %rbp
   movq %rsp, %rbp
@@ -46,11 +47,6 @@ main:
   pushq -8(%rbp)
   popq %rdi
   call print_int
-  movq $60, %rax
-  xorq %rdi, %rdi
-  syscall
-_start:
-  call main
-  movq $60, %rax
-  xorq %rdi, %rdi
-  syscall
+  movq $0, %rax
+  leave
+  ret

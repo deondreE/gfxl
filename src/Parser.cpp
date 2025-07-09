@@ -78,6 +78,10 @@ std::unique_ptr<Statement> Parser::parseStatement() {
     }
 }
 
+std::unique_ptr<Expression> Parser::parseBooleanLiteral() {
+    return std::make_unique<BooleanLiteral>(currentToken_.type == TRUE);
+}
+
 std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement() {
     auto identifier_expr = std::make_unique<IdentifierExpr>(currentToken_.literal);
 
@@ -168,8 +172,7 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence prec) {
 
 std::unique_ptr<PrintStatement> Parser::parsePrintStatement() {
     nextToken(); // Move to the expression after 'print'
-    nextToken();
-    
+    // for linux nextToken();
 
     std::unique_ptr<Expression> expr = parseExpression(LOWEST);
     if (!expr) {

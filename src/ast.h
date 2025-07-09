@@ -5,20 +5,34 @@
 #include <memory>
 #include "Token.h"
 
+class ASTVisitor;
+
 // ─────────────────── Base node ───────────────────
 class ASTNode {
 public:
     virtual ~ASTNode() = default;
+
+    virtual void accept(ASTVisitor& visitor) = 0;
 };
 
 // ─────────────────── Expressions ─────────────────
-class Expression : public ASTNode {};
+class Expression : public ASTNode {
+public:
+    TokenType resolvedType = ILLEGAL;
+};
 
 // Integer literal  e.g.  42
 class IntegerLiteral : public Expression {
 public:
     explicit IntegerLiteral(int val) : value(val) {}
     int value;
+    void accept(ASTVisitor& visitor) override;
+};
+class BooleanLiteral : public Expression {
+public:
+    explicit BooleanLiteral(bool val) : value(val) {}
+    bool value;
+    void accept(ASTVisitor& visitor) override;
 };
 
 // Identifier expression  e.g.  foo
@@ -26,6 +40,8 @@ class IdentifierExpr : public Expression {
 public:
     explicit IdentifierExpr(std::string n) : name(std::move(n)) {}
     std::string name;
+    TokenType resolvedType = ILLEGAL;
+    void accept(ASTVisitor& visitor) override;
 };
 
 // Binary expression  e.g.  a + b
@@ -40,6 +56,7 @@ public:
     std::unique_ptr<Expression> left;
     TokenType                   op;
     std::unique_ptr<Expression> right;
+    void accept(ASTVisitor& visitor) override;
 };
 
 // ─────────────────── Statements ──────────────────
@@ -52,6 +69,7 @@ public:
         : expression(std::move(expr)) {
     }
     std::unique_ptr<Expression> expression;
+    void accept(ASTVisitor& visitor) override; 
 };
 
 // Assignment  e.g.  x = 5;
@@ -63,6 +81,7 @@ public:
     }
     std::unique_ptr<IdentifierExpr> identifier;
     std::unique_ptr<Expression>     value;
+    void accept(ASTVisitor& visitor) override;
 };
 
 // print <expr>;
@@ -72,6 +91,7 @@ public:
         : expression(std::move(expr)) {
     }
     std::unique_ptr<Expression> expression;
+    void accept(ASTVisitor& visitor) override;
 };
 
 // ─────────────────── Program root ────────────────
@@ -81,4 +101,5 @@ public:
         statements.emplace_back(std::move(stmt));
     }
     std::vector<std::unique_ptr<Statement>> statements;
+    void accept(ASTVisitor& visitor) override;
 };
