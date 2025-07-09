@@ -168,6 +168,8 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence prec) {
 
 std::unique_ptr<PrintStatement> Parser::parsePrintStatement() {
     nextToken(); // Move to the expression after 'print'
+    nextToken();
+    
 
     std::unique_ptr<Expression> expr = parseExpression(LOWEST);
     if (!expr) {
