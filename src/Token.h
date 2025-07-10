@@ -20,6 +20,7 @@ enum TokenType {
     ASTERISK,
     SLASH,
     SEMICOLON,
+    COLON,
     LPAREN,
     RPAREN,
     PRINT,

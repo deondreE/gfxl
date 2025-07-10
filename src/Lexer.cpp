@@ -12,6 +12,7 @@ const std::map<TokenType, std::string> tokenTypeStrings = {
     {STRING,             "STRING"},
     {CHAR,               "CHAR"},
     {ASSIGN,             "ASSIGN"},
+    {COLON,              "COLON"},
     {OCTAL,              "OCTAL"},
     {HEX,                "HEX"},
     {PLUS,               "PLUS"},
@@ -154,6 +155,7 @@ Token Lexer::nextToken() {
     case ';': tok = { SEMICOLON, ";" }; break;
     case '(': tok = { LPAREN,    "(" }; break;
     case ')': tok = { RPAREN,    ")" }; break;
+    case ':': tok = { COLON,     ":" }; break;
     case  0: tok = { END_OF_FILE, "" }; break;
     default:  tok = { ILLEGAL, std::string(1, ch_) }; break;
     }
