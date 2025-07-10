@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 #include <map>
@@ -8,6 +8,11 @@ enum TokenType {
     END_OF_FILE,
     IDENTIFIER,
     INT,
+    FLOAT,
+    STRING,
+    OCTAL,
+    HEX,
+    CHAR,
     BOOL,
     ASSIGN,
     PLUS,

@@ -8,7 +8,12 @@ const std::map<TokenType, std::string> tokenTypeStrings = {
     {IDENTIFIER,         "IDENTIFIER"},
     {INT,                "INT"},
     {BOOL,               "BOOL"},
+    {FLOAT,              "FLOAT"},
+    {STRING,             "STRING"},
+    {CHAR,               "CHAR"},
     {ASSIGN,             "ASSIGN"},
+    {OCTAL,              "OCTAL"},
+    {HEX,                "HEX"},
     {PLUS,               "PLUS"},
     {MINUS,              "MINUS"},
     {ASTERISK,           "ASTERISK"},
@@ -78,6 +83,19 @@ void Lexer::skipIgnorable() {
 Token Lexer::nextToken() {
     skipIgnorable();
 
+    // -- string literal
+    if (ch_ == '"') {
+        std::string lit = readString();
+        return { STRING, lit };
+    }
+
+    // ? char literal
+    if (ch_ == '\'') {
+        std::string lit = readCharLiteral();
+        return { CHAR, lit };
+    }
+
+
     // identifier or keyword
     if (std::isalpha(static_cast<unsigned char>(ch_)) || ch_ == '_') {
         size_t start = position_;
@@ -88,13 +106,41 @@ Token Lexer::nextToken() {
         return { lookupIdent(lit), lit };
     }
 
-    // integer literal
+    // Numeric literal: hex, ocatal, int, float
     if (std::isdigit(static_cast<unsigned char>(ch_))) {
+        if (ch_ = '0' && peek() == 'x' || peek() == 'X') {
+            size_t start = position_;
+            advance();
+            advance();
+            while (std::isdigit(static_cast<unsigned char>(ch_))) {
+                advance();
+            }
+            std::string lit = input_.substr(start, position_ - start);
+
+            return { HEX, lit };
+        }
+
         size_t start = position_;
         while (std::isdigit(static_cast<unsigned char>(ch_))) {
             advance();
         }
-        return { INT, input_.substr(start, position_ - start) };
+
+        // do we have a float
+        if (ch_ == '.' && std::isdigit(static_cast<unsigned char>(peek()))) {
+            advance();
+            while (std::isdigit(static_cast<unsigned char>(ch_))) {
+                advance();
+            }
+            std::string lit = input_.substr(start, position_ - start);
+            return { FLOAT, lit };
+        }
+
+        std::string lit = input_.substr(start, position_ - start);
+        if (lit.size() > 1 && lit[0] == '0') {
+            return { OCTAL, lit };
+        } 
+        
+        return { INT, lit };
     }
 
     // single-character tokens
@@ -120,6 +166,32 @@ TokenType Lexer::lookupIdent(const std::string& lit) const {
     else if (lit == "true")  return TRUE;
     else if (lit == "false") return FALSE;
     else                      return IDENTIFIER;
+}
+
+std::string Lexer::readString() {
+    advance();
+    size_t start = position_;
+    while (ch_ != '"' && ch_ != 0) {
+        advance();
+    }
+
+    std::string str = input_.substr(start, position_ - start);
+    advance();
+    return str;
+}
+
+std::string Lexer::readCharLiteral() {
+    advance();
+
+    if (ch_ == 0) return "";
+    char c = ch_;
+    advance(); 
+
+    if (ch_ != '\'') {
+
+    }
+    advance();
+    return std::string(1, c);
 }
 
 void Lexer::skipSinglelineComment() {

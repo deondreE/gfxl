@@ -31,4 +31,7 @@ private:
 
     // Map an identifier string to either IDENTIFIER or a keyword token
     TokenType lookupIdent(const std::string& lit) const;
+
+    std::string readString();
+    std::string readCharLiteral();
 };

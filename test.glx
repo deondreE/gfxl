@@ -1,14 +1,16 @@
+# we support simple mathmatics
 a = 1 + 2 * 3;
 b = (a + 4) / 2;
 
+# Type of varibles currently tokenized
+o = 0000
+H = 0x0000 
+c = 'c'
+s = "string"
+f1 = 0.0
 t = true
 f = false
 
+# Print doesn't work with variables YET
 print(true);
 print(false);
-
-# Testing default comment
-
-###
-Testing multiline comment
-###
