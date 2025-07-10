@@ -4,6 +4,11 @@ b = (a + 4) / 2;
 t = true
 f = false
 
-print(f);
+print(true);
 print(false);
 
+# Testing default comment
+
+###
+Testing multiline comment
+###

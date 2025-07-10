@@ -18,6 +18,7 @@ public:
     virtual void visit(IdentifierExpr& node) = 0;
     virtual void visit(IntegerLiteral& node) = 0;
     virtual void visit(BinaryExpression& node) = 0;
+    virtual void visit(CommentNode& node) = 0;
 };
 
 class SemanticAnalyzer : public ASTVisitor {
@@ -85,6 +86,9 @@ public:
             addError("Semantic Error: PRINT statement argument has an unresolved or invalid type.");
         }
     }
+
+    // DO NOTHING
+    void visit(CommentNode& node) override {}
     
     void visit(BooleanLiteral& node) override {
         node.resolvedType = BOOL;

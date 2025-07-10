@@ -1,28 +1,34 @@
 #pragma once
 
 #include <string>
-#include "Token.h"
+#include "Token.h"    // brings in Token, TokenType, and tokenTypeStrings
 
-class Lexer
-{
+class Lexer {
 public:
-	Lexer(const std::string& input);
-
-	Token nextToken();
+    explicit Lexer(const std::string& input);
+    Token nextToken();
 
 private:
-	std::string input_;
-	int position_;
-	int readPosition_;
-	char ch_;
+    std::string input_;
+    size_t      position_;      // current char index
+    size_t      readPosition_;  // next char index
+    char        ch_;            // current char under examination
 
-	void readChar();
-	char peekChar();
-	std::string readIdentifier();
-	std::string readNumber();	
-	void skipWhitespace();
+    // Advance by one character (or set ch_ = 0 at EOF)
+    void advance();
 
-	bool isLetter(char ch);
-	bool isDigit(char ch);
+    // Peek ahead 'ahead' characters; returns 0 at EOF
+    char peek(size_t ahead = 0) const;
+
+    // Skip whitespace and both kinds of comments
+    void skipIgnorable();
+
+    // Skip until end-of-line or EOF (assumes ch_ == '#')
+    void skipSinglelineComment();
+
+    // Skip until closing ### (assumes ch_,peek(0),peek(1) == '#','\#','\#')
+    void skipMultilineComment();
+
+    // Map an identifier string to either IDENTIFIER or a keyword token
+    TokenType lookupIdent(const std::string& lit) const;
 };
-

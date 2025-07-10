@@ -45,6 +45,16 @@ public:
     void accept(ASTVisitor& visitor) override;
 };
 
+class CommentNode : public ASTNode {
+public:
+    explicit CommentNode(Token t) : commentToken(t) {}
+
+    Token commentToken;
+    std::string comment;
+
+    void accept(ASTVisitor& visitor) override;
+};
+
 // Binary expression  e.g.  a + b
 class BinaryExpression : public Expression {
 public:

@@ -25,6 +25,7 @@ public:
     Parser(Lexer& l); // Takes a Lexer reference
 
     std::unique_ptr<Program> parseProgram();
+    std::unique_ptr<ASTNode> parseTopLevelNode();
     std::vector<std::string> getErrors() const;
 
 private:
@@ -38,6 +39,8 @@ private:
     bool currentTokenIs(TokenType type) const;
     bool peekTokenIs(TokenType type) const;
     bool expectPeek(TokenType type); // Checks peekToken, advances, and logs error if mismatch
+
+    bool isCommentToken(TokenType type) const;
 
     // --- Error Handling ---
     void peekError(TokenType type);
