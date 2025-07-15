@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <map>
 #include <string>
+#include <cstdlib>
 #include <vector>
 
 // --- Global Precedence Map ---
@@ -27,13 +28,27 @@ std::vector<std::string> Parser::getErrors() const {
     return errors_;
 }
 
-void Parser::peekError(TokenType type) {
-    std::string msg = "Parser error: Expected next token to be " + tokenTypeStrings.at(type) +
-        ", got " + tokenTypeStrings.at(peekToken_.type) +
-        " instead. (Literal: '" + peekToken_.literal + "')";
-    errors_.push_back(msg);
+constexpr const char* tokenTypeToString(TokenType type) {
+    switch (type) {
+    case ASSIGN: return "ASSIGN";
+    case PLUS: return "PLUS";
+    case MINUS: return "MINUS";
+    case ASTERISK: return "ASTERISK";
+    case SLASH: return "SLASH";
+    case INT: return "INT";
+    case IDENTIFIER: return "IDENTIFIER";
+        // add more cases...
+    default: return "UNKNOWN";
+    }
 }
 
+void Parser::peekError(TokenType type) {
+    std::ostringstream msg;
+    msg << "Parser error: Expected next token to be " << tokenTypeToString(type)
+        << ", got " << tokenTypeToString(peekToken_.type)
+        << " instead. (Literal: '" << peekToken_.literal << "')";
+    errors_.emplace_back(msg.str());
+}
 // Helper to check if a token type is a comment.
 bool Parser::isCommentToken(TokenType type) const {
     return type == COMMENT_SINGLE_LINE || type == COMMENT_MULTI_LINE;
@@ -55,11 +70,11 @@ void Parser::nextToken() {
     }
 }
 
-bool Parser::currentTokenIs(TokenType type) const {
+inline bool Parser::currentTokenIs(TokenType type) const {
     return currentToken_.type == type;
 }
 
-bool Parser::peekTokenIs(TokenType type) const {
+inline bool Parser::peekTokenIs(TokenType type) const {
     return peekToken_.type == type;
 }
 
@@ -99,27 +114,6 @@ std::unique_ptr<Program> Parser::parseProgram() {
                 // For this fix, we'll assume they are *not* added to program->statements.
             }
         }
-
-        // Advance to the next token. This is critical.
-        // After `parseTopLevelNode` consumes its token (or creates a node from it),
-        // we need to get the *next* token from the lexer.
-        // If `parseTopLevelNode` just processed a comment token, `nextToken` must
-        // now ensure that the `currentToken_` is the first *non-comment* token.
-        // The original `Parser::nextToken()` did not handle skipping comments.
-        // Let's refine it to explicitly skip comments *after* `parseTopLevelNode` might have used a comment token.
-
-        // First, let's ensure currentToken_ is updated correctly before advancing peekToken_.
-        // The loop structure implies currentToken_ is already set by the previous loop's nextToken().
-        // So, after processing the node derived from currentToken_, we just need to get the NEXT.
-
-        // Let's move `nextToken()` to the END of the loop, so it prepares for the *next* iteration.
-        // The currentToken_ from the *previous* iteration's nextToken() is processed by parseTopLevelNode.
-
-        // Correction to loop logic:
-        // The `currentToken_` obtained from the *previous* loop iteration's `nextToken()` is processed by `parseTopLevelNode()`.
-        // After processing, we need to prepare `currentToken_` for the *next* iteration.
-        // This means calling `nextToken()` here, and ensuring `nextToken` itself skips comments.
-        nextToken(); // Advance to the next token, skipping comments if necessary.
     }
     return program;
 }
@@ -159,7 +153,11 @@ std::unique_ptr<Statement> Parser::parseStatement() {
 }
 
 std::unique_ptr<Expression> Parser::parseBooleanLiteral() {
-    return std::make_unique<BooleanLiteral>(currentToken_.type == TRUE);
+    bool val = (currentToken_.type == TRUE);
+    auto expr = std::make_unique<BooleanLiteral>(val);
+    expr->resolvedType = BOOL;
+    nextToken();
+    return expr;
 }
 
 std::unique_ptr<AssignmentStatement> Parser::parseAssignmentStatement() {
@@ -273,18 +271,33 @@ std::unique_ptr<PrintStatement> Parser::parsePrintStatement() {
 }
 
 std::unique_ptr<Expression> Parser::parseIntegerLiteral() {
-    try {
-        int val = std::stoi(currentToken_.literal);
-        return std::make_unique<IntegerLiteral>(val);
-    }
-    catch (const std::out_of_range& oor) {
-        errors_.push_back("Integer literal " + currentToken_.literal + " out of range.");
-        return nullptr;
-    }
-    catch (const std::invalid_argument& ia) {
-        errors_.push_back("Could not parse " + currentToken_.literal + " as integer.");
-        return nullptr;
-    }
+    const std::string& lit = currentToken_.literal;
+    int base = 10;
+    if (currentToken_.type == HEX) base = 16;
+    else if (currentToken_.type == OCTAL) base = 8; 
+
+    char* endPtr = nullptr;
+    long val = std::strtol(lit.c_str(), &endPtr, base);
+
+    auto expr = std::make_unique<IntegerLiteral>(static_cast<int>(val));
+    expr->resolvedType = currentToken_.type;
+    nextToken();
+    return expr;
+}
+
+std::unique_ptr<Expression> Parser::parseStringLiteral() {
+    auto expr = std::make_unique<StringLiteral>(currentToken_.literal);
+    expr->resolvedType = STRING;
+    nextToken();
+    return expr;
+}
+
+std::unique_ptr<Expression> Parser::parseCharLiteral() {
+    char c = currentToken_.literal.empty() ? '\0' : currentToken_.literal[0];
+    auto expr = std::make_unique<CharLiteral>(c);
+    expr->resolvedType = CHAR;
+    nextToken();
+    return expr;
 }
 
 std::unique_ptr<Expression> Parser::parseIdentifier() {
@@ -336,6 +349,8 @@ void Parser::setupParseFunctions() {
     registerPrefix(LPAREN, &Parser::parseGroupedExpression);
     registerPrefix(TRUE, &Parser::parseBooleanLiteral);
     registerPrefix(FALSE, &Parser::parseBooleanLiteral);
+    registerPrefix(STRING, &Parser::parseStringLiteral);
+    registerPrefix(CHAR, &Parser::parseCharLiteral);
 
     registerInfix(PLUS, &Parser::parseInfixExpression);
     registerInfix(MINUS, &Parser::parseInfixExpression);

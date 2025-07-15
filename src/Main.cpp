@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <map>
+#include <typeinfo>
 
 #include "Lexer.h"
 #include "Token.h"
@@ -38,33 +39,29 @@ void printAST(std::ostream& os, const ASTNode* node, int indent = 0) {
             printAST(os, stmt.get(), indent + 1);
         }
     }
-    else if (auto assign =
-        dynamic_cast<const AssignmentStatement*>(node)) {
+    else if (auto assign = dynamic_cast<const AssignmentStatement*>(node)) {
         os << prefix << "Assignment:\n";
-        os << prefix << "  Identifier: " << assign->identifier->name
+        os << prefix << "  Identifier: "
+            << assign->identifier->name
             << " (Resolved: "
             << tokenTypeStrings.at(assign->identifier->resolvedType)
             << ")\n";
         os << prefix << "  Value:\n";
         printAST(os, assign->value.get(), indent + 2);
     }
-    else if (auto expr_stmt =
-        dynamic_cast<const ExpressionStatement*>(node)) {
-        os << prefix
-            << "ExpressionStatement (Resolved: "
+    else if (auto expr_stmt = dynamic_cast<const ExpressionStatement*>(node)) {
+        os << prefix << "ExpressionStatement (Resolved: "
             << tokenTypeStrings.at(expr_stmt->expression->resolvedType)
             << "):\n";
         printAST(os, expr_stmt->expression.get(), indent + 1);
     }
-    else if (auto print_stmt =
-        dynamic_cast<const PrintStatement*>(node)) {
+    else if (auto print_stmt = dynamic_cast<const PrintStatement*>(node)) {
         os << prefix << "PrintStatement (Arg: "
             << tokenTypeStrings.at(print_stmt->expression->resolvedType)
             << "):\n";
         printAST(os, print_stmt->expression.get(), indent + 1);
     }
-    else if (auto bin_expr =
-        dynamic_cast<const BinaryExpression*>(node)) {
+    else if (auto bin_expr = dynamic_cast<const BinaryExpression*>(node)) {
         os << prefix << "BinaryExpr (Op: "
             << tokenTypeStrings.at(bin_expr->op)
             << ", Resolved: "
@@ -75,30 +72,39 @@ void printAST(std::ostream& os, const ASTNode* node, int indent = 0) {
         os << prefix << "  Right:\n";
         printAST(os, bin_expr->right.get(), indent + 2);
     }
-    else if (auto int_lit =
-        dynamic_cast<const IntegerLiteral*>(node)) {
+    else if (auto int_lit = dynamic_cast<const IntegerLiteral*>(node)) {
         os << prefix << "IntegerLiteral: " << int_lit->value
             << " (Resolved: "
             << tokenTypeStrings.at(int_lit->resolvedType)
             << ")\n";
     }
-    else if (auto bool_lit =
-        dynamic_cast<const BooleanLiteral*>(node)) {
+    else if (auto bool_lit = dynamic_cast<const BooleanLiteral*>(node)) {
         os << prefix << "BooleanLiteral: "
             << (bool_lit->value ? "true" : "false")
             << " (Resolved: "
             << tokenTypeStrings.at(bool_lit->resolvedType)
             << ")\n";
     }
-    else if (auto id_expr =
-        dynamic_cast<const IdentifierExpr*>(node)) {
+    else if (auto str_lit = dynamic_cast<const StringLiteral*>(node)) {
+        os << prefix << "StringLiteral: \"" << str_lit->value
+            << "\" (Resolved: "
+            << tokenTypeStrings.at(str_lit->resolvedType)
+            << ")\n";
+    }
+    else if (auto char_lit = dynamic_cast<const CharLiteral*>(node)) {
+        os << prefix << "CharLiteral: '" << char_lit->value
+            << "' (Resolved: "
+            << tokenTypeStrings.at(char_lit->resolvedType)
+            << ")\n";
+    }
+    else if (auto id_expr = dynamic_cast<const IdentifierExpr*>(node)) {
         os << prefix << "IdentifierExpr: " << id_expr->name
             << " (Resolved: "
             << tokenTypeStrings.at(id_expr->resolvedType)
             << ")\n";
     }
     else {
-        os << prefix << "Unknown AST Node (typeid: "
+        os << prefix << "Unknown AST Node ("
             << typeid(*node).name() << ")\n";
     }
 }
@@ -132,10 +138,6 @@ int main(int argc, char* argv[]) {
         }
         return 1;
     }
-    if (!program_ast) {
-        std::cerr << "Parsing failed: no AST produced.\n";
-        return 1;
-    }
     std::cout << "Parsing successful.\n\n";
 
     // Semantic Analysis
@@ -151,16 +153,15 @@ int main(int argc, char* argv[]) {
     std::cout << "Semantic analysis successful.\n\n";
 
     // Write AST to file
-    std::string ast_filename = "ast.txt";
-    std::ofstream ast_file(ast_filename);
-    if (!ast_file.is_open()) {
-        std::cerr << "Error: Could not open " << ast_filename
-            << " for writing.\n";
-        return 1;
+    {
+        std::ofstream ast_file("ast.txt");
+        if (!ast_file.is_open()) {
+            std::cerr << "Error: Could not open ast.txt for writing.\n";
+            return 1;
+        }
+        printAST(ast_file, program_ast.get());
     }
-    printAST(ast_file, program_ast.get());
-    ast_file.close();
-    std::cout << "AST written to " << ast_filename << "\n\n";
+    std::cout << "AST written to ast.txt\n\n";
 
     // Code Generation
     CodeGenerator codegen;
@@ -182,7 +183,5 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     out_file << asm_out;
-    out_file.close();
-
     return 0;
 }

@@ -7,6 +7,7 @@ enum TokenType {
     ILLEGAL,
     END_OF_FILE,
     IDENTIFIER,
+    
     INT,
     FLOAT,
     STRING,
@@ -14,6 +15,7 @@ enum TokenType {
     HEX,
     CHAR,
     BOOL,
+
     ASSIGN,
     PLUS,
     MINUS,
@@ -23,9 +25,11 @@ enum TokenType {
     COLON,
     LPAREN,
     RPAREN,
+
     PRINT,
     TRUE,
     FALSE,
+
     COMMENT_MULTI_LINE,
     COMMENT_SINGLE_LINE
 };

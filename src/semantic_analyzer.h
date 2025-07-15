@@ -15,6 +15,8 @@ public:
     virtual void visit(AssignmentStatement& node) = 0;
     virtual void visit(PrintStatement& node) = 0;
     virtual void visit(BooleanLiteral& node) = 0;
+    virtual void visit(StringLiteral& node) = 0;
+    virtual void visit(CharLiteral& node) = 0;
     virtual void visit(IdentifierExpr& node) = 0;
     virtual void visit(IntegerLiteral& node) = 0;
     virtual void visit(BinaryExpression& node) = 0;
@@ -85,6 +87,14 @@ public:
         if (node.expression->resolvedType == ILLEGAL) {
             addError("Semantic Error: PRINT statement argument has an unresolved or invalid type.");
         }
+    }
+
+    void visit(StringLiteral& node) override {
+        node.resolvedType = STRING;
+    }
+    
+    void visit(CharLiteral& node) override {
+        node.resolvedType = CHAR;
     }
 
     // DO NOTHING

@@ -3,7 +3,8 @@
 #include <vector>
 #include <string>
 #include <memory> 
-#include <map>
+#include <unordered_map>
+#include <sstream>
 
 #include "Lexer.h"
 #include "Token.h"
@@ -18,7 +19,7 @@ enum Precedence {
 };
 
 // Map to store operator precedences
-extern const std::map<TokenType, Precedence> precedences;
+extern const std::unordered_map<TokenType, Precedence> precedences;
 
 class Parser {
 public:
@@ -55,6 +56,8 @@ private:
     std::unique_ptr<Expression> parseIntegerLiteral();
     std::unique_ptr<Expression> parseIdentifier();
     std::unique_ptr<Expression> parseGroupedExpression();
+    std::unique_ptr<Expression> parseStringLiteral();
+    std::unique_ptr<Expression> parseCharLiteral();
     std::unique_ptr<PrintStatement> parsePrintStatement();
     std::unique_ptr<Expression> parseBooleanLiteral();
     std::unique_ptr<Expression> parsePrefixExpression(); // Handles INT, IDENTIFIER, LPAREN prefix
@@ -66,8 +69,8 @@ private:
     using PrefixParseFn = std::unique_ptr<Expression>(Parser::*)();
     using InfixParseFn = std::unique_ptr<Expression>(Parser::*)(std::unique_ptr<Expression>);
 
-    std::map<TokenType, PrefixParseFn> prefixParseFns;
-    std::map<TokenType, InfixParseFn> infixParseFns;
+    std::unordered_map<TokenType, PrefixParseFn> prefixParseFns;
+    std::unordered_map<TokenType, InfixParseFn> infixParseFns;
 
     void registerPrefix(TokenType token_type, PrefixParseFn fn);
     void registerInfix(TokenType token_type, InfixParseFn fn);

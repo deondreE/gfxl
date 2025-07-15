@@ -36,6 +36,22 @@ public:
     void accept(ASTVisitor& visitor) override;
 };
 
+class StringLiteral : public Expression {
+public:
+    explicit StringLiteral(std::string val) :
+        value(std::move(val)) { }
+    
+    std::string value;
+    void accept(ASTVisitor& visitor) override;
+};
+
+class CharLiteral : public Expression {
+public:
+    explicit CharLiteral(char val) : value(std::move(val)) {}
+    char value;
+    void accept(ASTVisitor& visitor) override;
+};
+
 // Identifier expression  e.g.  foo
 class IdentifierExpr : public Expression {
 public:
